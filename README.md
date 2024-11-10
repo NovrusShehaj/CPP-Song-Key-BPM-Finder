@@ -3,17 +3,16 @@
 CPP-Song-Key-BPM-Finder is a C++ project that utilizes Python libraries to analyze audio files and determine their key and beats per minute (BPM). This project leverages the `librosa` library in Python for audio analysis and `pybind11` for embedding Python in C++.
 
 ## Project Structure
-|- /
-| |- /.vscode/ 
-|   |- /c_cpp_properties.json 
-|   |- /launch.json 
-|   |- /settings.json 
-|- /appmap.yml 
-|- /key-bpm.cpp 
-|- /key-bpm2.cpp
-|- /PyBridge.py
-|- /Key-BpmFinder 
-|- /Key-BpmFinder2
+- /.vscode/
+- /.vscode/c_cpp_properties.json
+- /.vscode/launch.json
+- /.vscode/settings.json
+- /appmap.yml
+- /key-bpm.cpp
+- /key-bpm2.cpp
+- /Key-BpmFinder
+- /Key-BpmFinder2
+- /PyBridge.py
 
 ## Prerequisites
 
