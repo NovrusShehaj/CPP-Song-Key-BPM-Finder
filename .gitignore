@@ -1,0 +1,26 @@
+# Build outputs
+/build/
+/out/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/compile_commands.json
+/Makefile
+
+# Binaries
+/Key-BpmFinder
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# AppMap output
+/tmp/
