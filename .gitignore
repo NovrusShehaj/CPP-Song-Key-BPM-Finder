@@ -21,6 +21,4 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
-
-# AppMap output
-/tmp/
+.pytest_cache/

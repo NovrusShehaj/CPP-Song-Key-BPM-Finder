@@ -1,5 +1,7 @@
 # CPP Song Key + BPM Finder
 
+![CI](https://github.com/NovrusShehaj/CPP-Song-Key-BPM-Finder/actions/workflows/ci.yml/badge.svg)
+
 `CPP-Song-Key-BPM-Finder` is a C++ command-line project that uses a Python analysis bridge (`librosa` + `numpy`) to detect:
 
 1. tempo (BPM)
@@ -15,8 +17,10 @@ The project now uses a proper chroma-based key estimation pipeline with Krumhans
 - `src/main.cpp`: single C++ entrypoint
 - `include/bridge_runner.hpp`: C++ bridge execution utilities
 - `scripts/PyBridge.py`: Python analysis engine
+- `tests/`: Python unit tests and a CLI integration test
 - `CMakeLists.txt`: build configuration
 - `requirements.txt`: Python dependencies
+- `requirements-dev.txt`: Python dependencies plus test tooling
 
 ## Prerequisites
 
@@ -74,6 +78,21 @@ JSON mode:
 {"bpm": 121.53, "key": "A minor", "key_score": 0.8652, "key_confidence": 0.0421, "sample_rate": 44100, "duration_seconds": 34.18}
 ```
 
+## Testing
+
+Install test dependencies and run the Python unit tests:
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pytest tests/
+```
+
+Run the CLI integration test against the bundled sample (requires a build; see above):
+
+```bash
+KEY_BPM_PYTHON=.venv/bin/python bash tests/integration_test.sh
+```
+
 ## Troubleshooting
 
 - `Error: Audio file not found`: check the file path.
@@ -86,3 +105,7 @@ JSON mode:
 
 - `Key-BpmFinder` copies `scripts/PyBridge.py` into the build output directory automatically.
 - Key estimation is probabilistic; confidence is included so low-confidence detections are visible.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

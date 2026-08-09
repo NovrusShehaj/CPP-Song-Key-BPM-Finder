@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements-dev.txt
+
+      - name: Run Python unit tests
+        run: .venv/bin/pytest tests/ -v
+
+      - name: Configure and build
+        run: |
+          cmake -S . -B build
+          cmake --build build
+
+      - name: Run integration test
+        env:
+          KEY_BPM_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        run: bash tests/integration_test.sh
