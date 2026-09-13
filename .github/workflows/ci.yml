@@ -2,13 +2,114 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "dev/**"]
   pull_request:
 
 jobs:
-  build-and-test:
+  python-tests:
+    name: pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    env:
+      PIP_CACHE_DIR: ${{ github.workspace }}/.cache/pip
+      NUMBA_CACHE_DIR: ${{ github.workspace }}/.cache/numba
+      TMPDIR: ${{ github.workspace }}/.tmp
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.lock
+            requirements-dev.txt
+            requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          mkdir -p .cache/pip .cache/numba .tmp/pytest
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          if [ "${{ matrix.python-version }}" = "3.11" ] && [ -f requirements.lock ]; then
+            .venv/bin/pip install -r requirements.lock
+          else
+            .venv/bin/pip install -r requirements-dev.txt
+          fi
+
+      - name: Run Python unit tests
+        run: |
+          .venv/bin/pytest tests/test_pybridge.py tests/test_corpus.py tests/test_edges.py \
+            -v --basetemp="${{ github.workspace }}/.tmp/pytest"
+
+  build-and-integration:
+    name: CMake + integration
+    runs-on: ubuntu-latest
+    env:
+      PIP_CACHE_DIR: ${{ github.workspace }}/.cache/pip
+      NUMBA_CACHE_DIR: ${{ github.workspace }}/.cache/numba
+      TMPDIR: ${{ github.workspace }}/.tmp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.lock
+            requirements-dev.txt
+            requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          mkdir -p .cache/pip .cache/numba .tmp/pytest .tmp/prefix
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          if [ -f requirements.lock ]; then
+            .venv/bin/pip install -r requirements.lock
+          else
+            .venv/bin/pip install -r requirements-dev.txt
+          fi
+
+      - name: Configure and build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+
+      - name: Run integration test
+        env:
+          KEY_BPM_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        run: bash tests/integration_test.sh
+
+      - name: Run C++ stub CLI tests
+        env:
+          KEY_BPM_PYTHON: ${{ github.workspace }}/.venv/bin/python
+          KEY_BPM_BINARY: ${{ github.workspace }}/build/Key-BpmFinder
+        run: |
+          .venv/bin/pytest tests/test_bridge_cli.py -v --basetemp="${{ github.workspace }}/.tmp/pytest"
+
+      - name: Install prefix smoke test
+        env:
+          KEY_BPM_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        run: |
+          cmake --install build --prefix "${{ github.workspace }}/.tmp/prefix"
+          "${{ github.workspace }}/.venv/bin/python" tests/generate_fixture.py \
+            --name K1 --output "${{ github.workspace }}/.tmp/install-sample.wav"
+          "${{ github.workspace }}/.tmp/prefix/bin/Key-BpmFinder" --json \
+            "${{ github.workspace }}/.tmp/install-sample.wav" \
+            | "${{ github.workspace }}/.venv/bin/python" -c 'import json,sys; json.loads(sys.stdin.read())'
+
+  sanitize-cpp:
+    name: ASan+UBSan C++ stubs
+    runs-on: ubuntu-latest
+    env:
+      TMPDIR: ${{ github.workspace }}/.tmp
     steps:
       - uses: actions/checkout@v4
 
@@ -17,18 +118,61 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install pytest only
+        run: |
+          mkdir -p .tmp/pytest
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install pytest
+
+      - name: Configure and build with sanitizers
+        run: |
+          cmake -S . -B build-asan -DKEYBPM_SANITIZE=ON -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build-asan
+
+      - name: Run stub tests under ASan/UBSan
+        env:
+          KEY_BPM_BINARY: ${{ github.workspace }}/build-asan/Key-BpmFinder
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          .venv/bin/pytest tests/test_bridge_cli.py -v --basetemp="${{ github.workspace }}/.tmp/pytest"
+
+  macos:
+    name: macOS pytest + build
+    runs-on: macos-latest
+    env:
+      PIP_CACHE_DIR: ${{ github.workspace }}/.cache/pip
+      NUMBA_CACHE_DIR: ${{ github.workspace }}/.cache/numba
+      TMPDIR: ${{ github.workspace }}/.tmp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.lock
+            requirements-dev.txt
+            requirements.txt
+
       - name: Install Python dependencies
         run: |
+          mkdir -p .cache/pip .cache/numba .tmp/pytest
           python3 -m venv .venv
           .venv/bin/pip install --upgrade pip
           .venv/bin/pip install -r requirements-dev.txt
 
       - name: Run Python unit tests
-        run: .venv/bin/pytest tests/ -v
+        run: |
+          .venv/bin/pytest tests/test_pybridge.py tests/test_corpus.py tests/test_edges.py \
+            -v --basetemp="${{ github.workspace }}/.tmp/pytest"
 
       - name: Configure and build
         run: |
-          cmake -S . -B build
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build
 
       - name: Run integration test

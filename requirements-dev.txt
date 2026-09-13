@@ -1,2 +1,8 @@
 -r requirements.txt
 pytest>=8.0
+
+# CI on Python 3.11 prefers requirements.lock when present.
+# Regenerate inside the repo only:
+#   python3 -m venv .venv
+#   PIP_CACHE_DIR=.cache/pip .venv/bin/pip install -r requirements-dev.txt
+#   .venv/bin/pip freeze > requirements.lock
